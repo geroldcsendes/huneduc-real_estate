@@ -2,21 +2,9 @@ library(rvest)
 
 base_url <- "https://ingatlan.com/lista/elado+lakas"
 
-t <- read_html("https://ingatlan.com/lista/elado+lakas?page=2")
-
-
-se <- html_session( "https://httpbin.org/user-agent", user_agent("httr"))
-se$response$request$options$useragent
-
 # different user agent
 httr::user_agent(uastring)
 uastring <- "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36"
-
-
-se_changed <- GET("http://httpbin.org/user-agent", user_agent("httr"))
-se_changed$response$request$options$useragent
-
-myres <- httr::GET("https://ingatlan.com/lista/elado+lakas?page=2", user_agent("httr"))
 
 t <- read_html(myres)
 t %>% 
@@ -34,7 +22,7 @@ t %>%
 
 myres <- httr::GET("https://ingatlan.com/lista/elado+lakas+Budapest", user_agent("httr"),
                    query = list(
-                     page = 3))
+                     page = 1))
 
 t <- read_html(myres)
 t %>% 
@@ -96,8 +84,8 @@ scrape_real_estate <- function(page) {
                      area = NA)
     }
   )
-  return (df)
   Sys.sleep(2) # doze some time
+  return (df)
 }
 
 
@@ -105,8 +93,29 @@ scrape_real_estate <- function(page) {
 real_estate_df <- lapply(1:600, scrape_real_estate)
 real_estate_df <- rbindlist(real_estate_df)
 
-# temp save
-#write.csv(real_estate_df, "data/processed/real_estate_df.csv", row.names = F)
-
 # munge real estate data
-trimws(real_estate_df$price)
+real_estate_df <- real_estate_df %>% 
+  # factors to strings
+  mutate_if(is.factor, as.character) %>% 
+  mutate_if(is.character, trimws) %>% 
+  mutate(price = str_replace_all(price, " ", ""),
+         price_sqm = str_replace_all(price_sqm, " ", ""),
+         area = str_replace_all(area, " ", "")) %>% 
+  # remove characters like M Ft from the end of strings
+  mutate(price = as.numeric(substr(price, 1, nchar(price) - 3)),
+         price_sqm = as.numeric(substr(price_sqm, 1, nchar(price_sqm) - 5)),
+         area = as.numeric(substr(area, 1, nchar(area) - 9))) %>% 
+  # filter for Budapest
+  filter(str_detect(tolower(address), "kerület") | (str_detect(tolower(address), "budapest")))
+
+write.csv(real_estate_df, "data/processed/real_estate_df.csv", row.names = F)
+
+# later add links too
+t <- read_html(myres)
+myurls <- t %>% 
+  html_nodes(".js-listing-active-area") %>% 
+  html_attr('href')
+
+t %>% 
+  html_nodes(".price") %>% 
+  html_text()
