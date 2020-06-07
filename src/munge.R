@@ -49,5 +49,30 @@ okm_coords <- okm_coords %>%
 # join gps to okm data
 okm_data <- merge(okm_data, okm_coords, by = "omid", all.x = T, all.y = F)
 
+
+okm_data <- read.csv("data/processed/okm_gps.csv")
+
+# add district and isk id cols
+okm_data <- okm_data %>% 
+  mutate(isk_id = str_c(nev_isk, irsz_isk, sep = " - "))
+         
+okm_data$district <- paste0(as.numeric(substr(okm_data$irsz_isk, 2, 3)), ". kerület")
 # save data
 write.csv(okm_data, "data/processed/okm_gps.csv", row.names = F)
+
+
+# Munge a bit more
+okm_data <- read.csv("data/processed/okm_gps.csv")
+
+coords_df <- okm_data %>% 
+  arrange(omid, year) %>% 
+  select(omid, lat, lon, nev_isk, irsz_isk, utca_isk) %>% 
+  group_by(omid) %>% 
+  summarise_all(last) %>% 
+  filter(!is.na(lat)) %>% 
+  mutate(isk_id = str_c(nev_isk, irsz_isk, sep = " - "))
+
+# add kerület col
+coords_df$district <- paste0(as.numeric(substr(coords_df$irsz_isk, 2, 3)), ". kerület")
+
+write.csv(coords_df, "data/processed/okm_distinct_gps.csv", row.names = F)
