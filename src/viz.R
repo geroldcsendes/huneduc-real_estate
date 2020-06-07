@@ -1,5 +1,6 @@
 library(tidyverse)
 library(leaflet)
+library(geosphere)
 source("educ-real_estate/global.R")
 
 # read in data
@@ -18,31 +19,6 @@ real_estate <- read.csv(paste0(data_path, real_estate_filename))
 
 # try out funcs
 myviz_df <- yearly_educ(year_sel = 2018, district_sel = "1. kerület", okm_df = okm, coords_df = coords_df)
-
-myfunc <- function(okm_df, year_sel, groupers) {
-  df <- okm_df %>% 
-    filter(year == year_sel) %>% 
-    group_by({{groupers}}) %>% 
-    summarise(mean(m_stat))
-  
-  return(df)
-}
-
-
-tempres <- myfunc(okm, 2018, groupers = c("omid", "evfolyam"))
-
-grade <- 6
-school <- NULL
-district <- NULL
-group_vars <- c("evfolyam")
-year_sel <- 2018
-
-
-
-okm %>% 
-  filter(year = year_sel)
-  group_by(formula(c("omid", "evfolyam"))) %>% 
-  sumamrise(mean(m_stat))
 
 
 # filter for one year
@@ -90,8 +66,23 @@ icons <- awesomeIcons(
   markerColor = "cadetblue"
 )
 
-leaflet(real_estate) %>% addTiles() %>%
+sample_n(real_estate, 100) %>% 
+  leaflet() %>% 
+  addTiles() %>%
   addAwesomeMarkers(~lon, ~lat, icon=icons)
+
+
+# return real estate within 5 km range
+myres <- houses_within_price_dist(price_low = 35, price_high = 40, isk_sel = "Budapest I. Kerületi Batthyány Lajos Általános Iskola - 1015", 
+                                  real_estate_df = real_estate, coords_df = coords_df)
+
+
+leaflet(myres) %>% 
+addTiles() %>%
+addAwesomeMarkers(~lon, ~lat, icon=icons,
+                popup = paste("Address:", myres$address, "<br>",
+                              "Price:", myres$price, "<br>",
+                              "Price sqm:", myres$price_sqm, "<br>"))
 
 
 
